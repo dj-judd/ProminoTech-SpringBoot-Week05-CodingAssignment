@@ -2,10 +2,8 @@ package com.promineotech.jeep.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import java.io.IOException;
 import java.io.InputStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +12,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -28,9 +28,13 @@ class ImageUploadTest {
   @Autowired
   private MockMvc mockMvc;
   
+  @Autowired
+  private JdbcTemplate jdbcTemplate;
+  
   @Test
   void testThatTheServerCorrectlyReceivesAnImageAndReturnsAnOKResponse()
       throws Exception {
+    int numRows = JdbcTestUtils.countRowsInTable(jdbcTemplate, "images");
     Resource image = new ClassPathResource(JEEP_IMAGE);
     
     if(!image.exists()) {
@@ -47,12 +51,14 @@ class ImageUploadTest {
               .multipart("/jeeps/1/image")
               .file(file))
           .andDo(print())
-          .andExpect(status().isOk())
+          .andExpect(status().is(201))
           .andReturn();
       // @formatter:on
       
       String content = result.getResponse().getContentAsString();
       assertThat(content).isNotEmpty();
+      assertThat(JdbcTestUtils.countRowsInTable(jdbcTemplate, "images"))
+          .isEqualTo(numRows + 1);
     }
   }
 
